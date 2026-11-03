@@ -19,6 +19,7 @@ text.
 | omp | `omp plugin marketplace add google/elephant-goldfish-model && omp plugin install egm@egm` |
 | Muse | `git clone https://github.com/google/elephant-goldfish-model.git && muse plugins install ./elephant-goldfish-model --scope user && muse plugins approve egm` |
 | Mistral Vibe | `git clone https://github.com/google/elephant-goldfish-model.git && python3 scripts/pack_plugin.py --target vibe --output /tmp/egm-vibe`, then copy `/tmp/egm-vibe/egm-vibe` to `~/.vibe/plugins/egm`; see the [Vibe guide](https://github.com/google/elephant-goldfish-model/blob/main/docs/vibe.md) |
+| pi (pi.dev) | `pi install git:github.com/google/elephant-goldfish-model`; or build with `python3 scripts/pack_plugin.py --target pi --output /tmp/egm-pi` and run `pi install /tmp/egm-pi/egm-pi`; see the [Pi guide](https://github.com/google/elephant-goldfish-model/blob/main/docs/pi.md) |
 
 Install the whole plugin. Skill-only installers that copy `skills/` alone
 break EGM, because the skills read `agents/` and
@@ -73,6 +74,7 @@ while `agents/` contains reviewer personas. All hosts share the same `skills/`,
 | omp | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` (Claude-compatible fallback) | `skills/` (default) | Personas from `agents/`/`.claude-plugin/agents/` register as native `task` agents |
 | Muse | `.claude-plugin/plugin.json` (Claude-compatible fallback) | `skills/` (default) | 9 adapters import as agents; tool projections unsupported |
 | Mistral Vibe | `.vibe-plugin/plugin.json` (native Agent Plugins 1.0), ships as bundle-root `plugin.json` | `skills/` (default) | Not shipped; general-purpose subagent reads the persona file |
+| pi (pi.dev) | `.pi-plugin/package.json` (pi package manifest), ships as bundle-root `package.json` | `skills/` (declared via `pi.skills`, also conventional) | Not shipped; extension-provided subagent reads the persona file |
 
 Persona prompts live in `agents/`, the directory Antigravity
 scans for subagents. Each persona has `name` and `description` frontmatter, so
@@ -100,6 +102,7 @@ phrase to its own tool:
 | omp | `task` tool | Yes | Yes |
 | Muse | Native subagents; inspect the available schema | Named spawn rejected in 1.4.14; general-purpose fallback verified | Detect at runtime; direct dispatch fallback |
 | Mistral Vibe | `agents_spawn` | No | Detect at runtime; direct dispatch fallback |
+| pi (pi.dev) | Extension-provided (for example the `subagent` example extension); none built in | No | Depends on the extension; direct dispatch fallback |
 
 Where a harness has no named persona, the skill spawns a general-purpose
 subagent and tells it to read `agents/<file>.md` first. If a harness cannot
@@ -171,6 +174,21 @@ slash menu but the model cannot load them through the `skill` tool. Offline
 packaging and manifest checks pass; end-to-end workflow fixtures, reviewer
 isolation, and instruction-file exclusion are not yet verified. See the
 [Vibe guide](https://github.com/google/elephant-goldfish-model/blob/main/docs/vibe.md).
+
+**pi (pi.dev)** has a working installation path. `pi install
+git:github.com/google/elephant-goldfish-model` loads the repository as a pi
+package and discovers all seven skills under `skills/`, and the `pi`
+packaging target builds a runtime folder whose root carries the pi package
+manifest (`.pi-plugin/package.json` in the repository) declaring `pi.skills`.
+Skills keep `disable-model-invocation: true`, which Pi honors: they run only
+through `/skill:egm-*` commands. Pi's core ships no subagent tool, so
+Goldfish reviews additionally require an extension that spawns fresh-context
+subagents, such as the pi `subagent` example extension; without one the
+review skills stop. Offline packaging and manifest checks pass;
+end-to-end workflow fixtures, reviewer isolation, and instruction-file
+exclusion are not yet verified. See the
+[Pi guide](https://github.com/google/elephant-goldfish-model/blob/main/docs/pi.md).
+No skill routes a pi session to that guide yet, so point the session at it.
 
 See the [harness test record](https://github.com/google/elephant-goldfish-model/blob/main/TESTING.md#harness-test-record) for tested surfaces and limits.
 

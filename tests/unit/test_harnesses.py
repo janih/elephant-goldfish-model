@@ -18,6 +18,7 @@ COMPATIBILITY_MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
     ".vibe-plugin/plugin.json",
+    ".pi-plugin/package.json",
 )
 MARKETPLACES = (
     ".agents/plugins/marketplace.json",
@@ -111,6 +112,13 @@ def test_compatibility_metadata_matches_root(path: str) -> None:
     names = [frontmatter(s)["name"] for s in skills_root.glob("*/SKILL.md")]
     assert len(names) == len(set(names))
     assert set(names) == EXPECTED_SKILLS
+
+
+def test_pi_package_manifest_declares_shared_skills() -> None:
+  manifest = read_json(".pi-plugin/package.json")
+  assert manifest["pi"]["skills"] == ["./skills"]
+  assert "pi-package" in manifest["keywords"]
+  assert "extensions" not in manifest["pi"]
 
 
 @pytest.mark.parametrize("path", MARKETPLACES)
@@ -221,6 +229,7 @@ def test_bundled_prompt_dependencies_and_harness_guides() -> None:
   assert (ROOT / "docs/codex.md").is_file()
   assert (ROOT / "docs/muse.md").is_file()
   assert (ROOT / "docs/vibe.md").is_file()
+  assert (ROOT / "docs/pi.md").is_file()
   skills = list((ROOT / "skills").glob("*/SKILL.md"))
   for skill in skills:
     text = skill.read_text(encoding="utf-8")
@@ -248,6 +257,7 @@ def test_artifact_directory_override_is_documented_for_each_harness() -> None:
       ("docs/claude.md", "use the working directory and say why"),
       ("docs/codex.md", "use the working directory and say why"),
       ("docs/vibe.md", "use the working directory and say why"),
+      ("docs/pi.md", "use the working directory and say why"),
       ("docs/harnesses.md", "the files go to the working directory"),
   ):
     text = " ".join((ROOT / guide).read_text(encoding="utf-8").split())

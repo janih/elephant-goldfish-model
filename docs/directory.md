@@ -6,10 +6,12 @@ Build a runtime folder and ZIP using only Python's standard library:
 python3 scripts/pack_plugin.py --target claude --output /tmp/egm-release
 python3 scripts/pack_plugin.py --target openai --output /tmp/egm-release
 python3 scripts/pack_plugin.py --target vibe --output /tmp/egm-release
+python3 scripts/pack_plugin.py --target pi --output /tmp/egm-release
 ```
 
 The output contains `egm-claude/` and `egm-claude.zip`, `egm-openai/`
-and `egm-openai.zip`, or `egm-vibe/` and `egm-vibe.zip`. Existing outputs are
+and `egm-openai.zip`, `egm-vibe/` and `egm-vibe.zip`, or `egm-pi/` and
+`egm-pi.zip`. Existing outputs are
 refused. ZIP entry order, timestamps, and permissions are fixed; identical
 inputs produce identical archives on the same Python/zlib runtime.
 
@@ -33,5 +35,10 @@ For OpenAI, upload `egm-openai.zip`. For Mistral Vibe, copy the
 `egm-vibe/` folder to `~/.vibe/plugins/egm/` (user scope) or a trusted
 project's `.vibe/plugins/egm/`; the repository's `.vibe-plugin/plugin.json`
 ships as the bundle's root `plugin.json`, and the vibe guide `docs/vibe.md`
-ships only in this archive. Build output
+ships only in this archive. For pi (pi.dev), run
+`pi install <path-to>/egm-pi` on the built folder, or install the repository
+directly with `pi install git:github.com/google/elephant-goldfish-model`;
+the repository's `.pi-plugin/package.json` ships as the bundle's root
+`package.json`, and the pi guide `docs/pi.md` ships only in this archive.
+Build output
 alone does not establish installation, workflow support, or directory approval.

@@ -26,15 +26,20 @@ HOST = {
     # Vibe loads the manifest from the bundle root, and the portable root
     # manifest omits $schema for omp, so the source manifest ships renamed.
     "vibe": (".vibe-plugin/plugin.json", "docs/vibe.md"),
+    # Pi reads an npm-style package manifest from the bundle root; the
+    # portable root manifest is not a package.json, so it ships renamed.
+    "pi": (".pi-plugin/package.json", "docs/pi.md"),
 }
 RENAMES = {
     "vibe": {".vibe-plugin/plugin.json": "plugin.json"},
+    "pi": {".pi-plugin/package.json": "package.json"},
 }
 # Bundle paths that must ship for each target, including the root manifest.
 REQUIRED_MANIFEST = {
     "claude": ("plugin.json", ".claude-plugin/plugin.json"),
     "openai": ("plugin.json", ".codex-plugin/plugin.json"),
     "vibe": ("plugin.json", "docs/vibe.md"),
+    "pi": ("package.json", "docs/pi.md"),
 }
 SKILLS = (
     "egm-bootstrap", "egm-brainstorm", "egm-draft", "egm-drift-report",
@@ -97,6 +102,9 @@ def build(root: Path, target: str, output: Path) -> tuple[Path, Path]:
   if target == "vibe" and manifest.get("$schema") != (
       "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"):
     raise ValueError("Vibe manifest must declare the agent-plugins 1.0.0 schema")
+  if target == "pi" and manifest.get("pi", {}).get("skills") != [
+      "./skills"]:
+    raise ValueError('Pi manifest must declare pi.skills as ["./skills"]')
   portable = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
   openai = portable.get("extensions", {}).get("com.openai", {})
   if manifest.get("hooks") or portable.get("hooks") or openai.get("hooks"):
