@@ -29,12 +29,12 @@ def source(tmp_path: Path) -> Path:
   shutil.copyfile(ROOT / ".github/PULL_REQUEST_TEMPLATE.md",
                   root / ".github/PULL_REQUEST_TEMPLATE.md")
   for name in ("skills", "agents", "resources", "docs", "assets",
-               ".claude-plugin", ".codex-plugin"):
+               ".claude-plugin", ".codex-plugin", ".vibe-plugin"):
     shutil.copytree(ROOT / name, root / name)
   return root
 
 
-@pytest.mark.parametrize("target", ["claude", "openai"])
+@pytest.mark.parametrize("target", ["claude", "openai", "vibe"])
 def test_runtime_bundle_is_complete_and_reproducible(
     source: Path, tmp_path: Path, target: str,
 ) -> None:
@@ -83,6 +83,17 @@ def test_runtime_bundle_is_complete_and_reproducible(
     assert "assets/private.txt" not in names
     assert "docs/experimental-host.md" not in names
     assert "docs/directory.md" not in names
+    assert ("docs/vibe.md" in names) == (target == "vibe")
+    assert not any(p.startswith(".vibe-plugin/") for p in names)
+    if target == "vibe":
+      manifest = json.loads(bundle.read("plugin.json"))
+      assert manifest["$schema"] == (
+          "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json")
+      assert manifest["name"] == "egm"
+      assert bundle.read("plugin.json") == (
+          source / ".vibe-plugin/plugin.json").read_bytes()
+    else:
+      assert bundle.read("plugin.json") == (source / "plugin.json").read_bytes()
     assert (".claude-plugin/plugin.json" in names) == (target == "claude")
     assert (".claude-plugin/icon.png" in names) == (target == "claude")
     assert (".claude-plugin/agents/style.md" in names) == (target == "claude")
@@ -124,7 +135,7 @@ def test_skill_icon_and_host_palette_match(skill: str, base: str, facet: str) ->
     assert colors == {base, facet}
 
 
-@pytest.mark.parametrize("target", ["claude", "openai"])
+@pytest.mark.parametrize("target", ["claude", "openai", "vibe"])
 def test_bundles_readme_images(source: Path, tmp_path: Path, target: str) -> None:
   image_dir = source / "docs/assets"
   image_dir.mkdir(exist_ok=True)
@@ -151,12 +162,12 @@ def test_rejects_symlinked_runtime_paths(
     build(source, "openai", tmp_path / "output")
 
 
-@pytest.mark.parametrize("target", ["claude", "openai"])
+@pytest.mark.parametrize("target", ["claude", "openai", "vibe"])
 def test_reads_manifests_as_utf8(source: Path, tmp_path: Path, target: str) -> None:
   # Only a non-UTF-8 default encoding, like cp1252 on the windows-2025 runner,
   # fails this. The UTF-8 bytes of "Ё" include 0x81, which cp1252 cannot decode.
   for name in ("plugin.json", ".claude-plugin/plugin.json",
-               ".codex-plugin/plugin.json"):
+               ".codex-plugin/plugin.json", ".vibe-plugin/plugin.json"):
     path = source / name
     manifest = json.loads(path.read_text(encoding="utf-8"))
     manifest["description"] = "Ёlephant — goldfish"
@@ -200,6 +211,7 @@ def test_claude_agent_reference_forms(
 
 @pytest.mark.parametrize("target,directory", [
     ("claude", ".claude-plugin"), ("openai", ".codex-plugin"),
+    ("vibe", ".vibe-plugin"),
 ])
 @pytest.mark.parametrize("agents", [
     None, 5, True, {}, {"./agents/style.md": None}, 1.5,
@@ -259,6 +271,29 @@ def test_rejects_unbundled_codex_manifest_icons(
     build(source, "openai", tmp_path / "output")
 
 
+def test_rejects_vibe_manifest_without_agent_plugins_schema(
+    source: Path, tmp_path: Path,
+) -> None:
+  path = source / ".vibe-plugin/plugin.json"
+  manifest = json.loads(path.read_text())
+  del manifest["$schema"]
+  path.write_text(json.dumps(manifest))
+  output = tmp_path / "output"
+  with pytest.raises(ValueError, match="agent-plugins 1.0.0 schema"):
+    build(source, "vibe", output)
+  assert not output.exists()
+
+
+def test_incomplete_vibe_manifest_fails_before_output(
+    source: Path, tmp_path: Path,
+) -> None:
+  (source / ".vibe-plugin/plugin.json").unlink()
+  output = tmp_path / "output"
+  with pytest.raises(ValueError, match="Missing required file"):
+    build(source, "vibe", output)
+  assert not output.exists()
+
+
 def test_refuses_hooks_and_overwrites(source: Path, tmp_path: Path) -> None:
   output = tmp_path / "output"
   build(source, "claude", output)
@@ -291,7 +326,7 @@ def test_refuses_unbundled_services(source: Path, tmp_path: Path, field: str) ->
     build(source, "openai", tmp_path / "output")
 
 
-@pytest.mark.parametrize("target", ["claude", "openai"])
+@pytest.mark.parametrize("target", ["claude", "openai", "vibe"])
 @pytest.mark.parametrize("missing", [
     "skills",
     "skills/egm-bootstrap/SKILL.md",
@@ -325,7 +360,7 @@ def test_incomplete_source_fails_before_output(
   assert not output.exists()
 
 
-@pytest.mark.parametrize("target", ["claude", "openai"])
+@pytest.mark.parametrize("target", ["claude", "openai", "vibe"])
 @pytest.mark.parametrize("suffix", ["", ".zip"])
 def test_rejects_dangling_output_symlinks(
     source: Path, tmp_path: Path, target: str, suffix: str,
@@ -342,7 +377,7 @@ def test_rejects_dangling_output_symlinks(
   assert list(output.iterdir()) == [link]
 
 
-@pytest.mark.parametrize("target", ["claude", "openai"])
+@pytest.mark.parametrize("target", ["claude", "openai", "vibe"])
 @pytest.mark.parametrize("claim", ["file", "dangling-symlink", "symlink"])
 def test_archive_claimed_after_preflight_is_not_overwritten(
     source: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,

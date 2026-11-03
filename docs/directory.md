@@ -5,12 +5,13 @@ Build a runtime folder and ZIP using only Python's standard library:
 ```sh
 python3 scripts/pack_plugin.py --target claude --output /tmp/egm-release
 python3 scripts/pack_plugin.py --target openai --output /tmp/egm-release
+python3 scripts/pack_plugin.py --target vibe --output /tmp/egm-release
 ```
 
-The output contains `egm-claude/` and `egm-claude.zip`, or `egm-openai/`
-and `egm-openai.zip`. Existing outputs are refused. ZIP entry order,
-timestamps, and permissions are fixed; identical inputs produce identical
-archives on the same Python/zlib runtime.
+The output contains `egm-claude/` and `egm-claude.zip`, `egm-openai/`
+and `egm-openai.zip`, or `egm-vibe/` and `egm-vibe.zip`. Existing outputs are
+refused. ZIP entry order, timestamps, and permissions are fixed; identical
+inputs produce identical archives on the same Python/zlib runtime.
 
 The allowlist includes skill instructions and references, personas, standards,
 runtime guides, manifests, and icons. It excludes the site, tests, workflows,
@@ -28,5 +29,9 @@ Submit that subfolder through the directory portal. After source changes,
 build into a fresh temporary directory, replace `distributions/claude` with
 the generated `egm-claude/` folder, and run `pytest tests/unit`. The freshness
 test compares every published path and byte to a new build. Do not commit ZIPs.
-For OpenAI, upload `egm-openai.zip`. Build output
+For OpenAI, upload `egm-openai.zip`. For Mistral Vibe, copy the
+`egm-vibe/` folder to `~/.vibe/plugins/egm/` (user scope) or a trusted
+project's `.vibe/plugins/egm/`; the repository's `.vibe-plugin/plugin.json`
+ships as the bundle's root `plugin.json`, and the vibe guide `docs/vibe.md`
+ships only in this archive. Build output
 alone does not establish installation, workflow support, or directory approval.

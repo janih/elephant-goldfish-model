@@ -17,6 +17,7 @@ NAME_RE = r"(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?"
 COMPATIBILITY_MANIFESTS = (
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
+    ".vibe-plugin/plugin.json",
 )
 MARKETPLACES = (
     ".agents/plugins/marketplace.json",
@@ -219,6 +220,7 @@ def test_bundled_prompt_dependencies_and_harness_guides() -> None:
   assert (ROOT / "docs/claude.md").is_file()
   assert (ROOT / "docs/codex.md").is_file()
   assert (ROOT / "docs/muse.md").is_file()
+  assert (ROOT / "docs/vibe.md").is_file()
   skills = list((ROOT / "skills").glob("*/SKILL.md"))
   for skill in skills:
     text = skill.read_text(encoding="utf-8")
@@ -245,6 +247,7 @@ def test_artifact_directory_override_is_documented_for_each_harness() -> None:
   for guide, fallback in (
       ("docs/claude.md", "use the working directory and say why"),
       ("docs/codex.md", "use the working directory and say why"),
+      ("docs/vibe.md", "use the working directory and say why"),
       ("docs/harnesses.md", "the files go to the working directory"),
   ):
     text = " ".join((ROOT / guide).read_text(encoding="utf-8").split())

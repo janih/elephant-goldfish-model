@@ -10,7 +10,7 @@ import tempfile
 import zipfile
 
 SHARED = (
-    "plugin.json", "LICENSE", "README.md",
+    "LICENSE", "README.md",
     "skills/*/SKILL.md", "skills/*/agents/openai.yaml",
     "skills/*/assets/*.svg", "skills/*/assets/*.png", "skills/*/references/*.md",
     "skills/*/references/*.json", "agents/*.md", "resources/*.md",
@@ -20,16 +20,28 @@ SHARED = (
     "assets/*.svg", "assets/*.png", "docs/assets/*.svg", "docs/assets/*.png",
 )
 HOST = {
-    "claude": (".claude-plugin/plugin.json", ".claude-plugin/icon.png",
-               ".claude-plugin/agents/*.md"),
-    "openai": (".codex-plugin/plugin.json",),
+    "claude": (".claude-plugin/plugin.json", "plugin.json",
+               ".claude-plugin/icon.png", ".claude-plugin/agents/*.md"),
+    "openai": (".codex-plugin/plugin.json", "plugin.json",),
+    # Vibe loads the manifest from the bundle root, and the portable root
+    # manifest omits $schema for omp, so the source manifest ships renamed.
+    "vibe": (".vibe-plugin/plugin.json", "docs/vibe.md"),
+}
+RENAMES = {
+    "vibe": {".vibe-plugin/plugin.json": "plugin.json"},
+}
+# Bundle paths that must ship for each target, including the root manifest.
+REQUIRED_MANIFEST = {
+    "claude": ("plugin.json", ".claude-plugin/plugin.json"),
+    "openai": ("plugin.json", ".codex-plugin/plugin.json"),
+    "vibe": ("plugin.json", "docs/vibe.md"),
 }
 SKILLS = (
     "egm-bootstrap", "egm-brainstorm", "egm-draft", "egm-drift-report",
     "egm-resolve", "egm-review", "egm-review-loop",
 )
 REQUIRED_SHARED = (
-    "plugin.json", "LICENSE", "README.md", "assets/icon.svg",
+    "LICENSE", "README.md", "assets/icon.svg",
     "docs/index.md", "docs/getting_started.md", "docs/harnesses.md",
     "docs/claude.md", "docs/codex.md", "docs/faq.md", "docs/privacy.md",
     "resources/README.md", "resources/execution_instructions.md",
@@ -63,7 +75,8 @@ def build(root: Path, target: str, output: Path) -> tuple[Path, Path]:
     raise ValueError("Output folder or ZIP already exists")
   if folder == root or root.is_relative_to(folder):
     raise ValueError("Output must not contain the source tree")
-  files = set()
+  files = {}
+  renames = RENAMES.get(target, {})
   for pattern in SHARED + HOST[target]:
     for path in root.glob(pattern):
       relative = path.relative_to(root)
@@ -73,11 +86,17 @@ def build(root: Path, target: str, output: Path) -> tuple[Path, Path]:
       if not path.resolve().is_relative_to(root):
         raise ValueError(f"Path outside source: {relative}")
       if path.is_file():
-        files.add(relative)
-  for name in REQUIRED_SHARED + (HOST[target][0],):
+        destination = Path(renames.get(relative.as_posix(), relative.as_posix()))
+        if destination in files:
+          raise ValueError(f"Duplicate bundle path: {destination}")
+        files[destination] = relative
+  for name in REQUIRED_SHARED + REQUIRED_MANIFEST[target]:
     if Path(name) not in files:
       raise ValueError(f"Missing required file: {name}")
   manifest = json.loads((root / HOST[target][0]).read_text(encoding="utf-8"))
+  if target == "vibe" and manifest.get("$schema") != (
+      "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"):
+    raise ValueError("Vibe manifest must declare the agent-plugins 1.0.0 schema")
   portable = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
   openai = portable.get("extensions", {}).get("com.openai", {})
   if manifest.get("hooks") or portable.get("hooks") or openai.get("hooks"):
@@ -99,7 +118,7 @@ def build(root: Path, target: str, output: Path) -> tuple[Path, Path]:
         if not interface.get(key):
           raise ValueError(f"Missing OpenAI interface reference: {key}")
         references.append(interface[key])
-  else:
+  elif target == "claude":
     references.append(manifest.get("icon", "./.claude-plugin/icon.png"))
   for reference in references:
     path = Path(reference)
@@ -110,13 +129,13 @@ def build(root: Path, target: str, output: Path) -> tuple[Path, Path]:
   with tempfile.TemporaryDirectory(prefix=".egm-", dir=output) as temporary:
     staged = Path(temporary) / archive.name
     with zipfile.ZipFile(staged, "x", zipfile.ZIP_DEFLATED) as bundle:
-      for relative in sorted(files):
+      for destination, relative in sorted(files.items()):
         data = (root / relative).read_bytes()
-        destination = folder / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(data)
-        destination.chmod(0o644)
-        info = zipfile.ZipInfo(relative.as_posix(), (1980, 1, 1, 0, 0, 0))
+        runtime = folder / destination
+        runtime.parent.mkdir(parents=True, exist_ok=True)
+        runtime.write_bytes(data)
+        runtime.chmod(0o644)
+        info = zipfile.ZipInfo(destination.as_posix(), (1980, 1, 1, 0, 0, 0))
         info.create_system = 3
         info.external_attr = 0o100644 << 16
         info.compress_type = zipfile.ZIP_DEFLATED
