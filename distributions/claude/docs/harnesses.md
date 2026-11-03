@@ -18,6 +18,7 @@ text.
 | ChatGPT | Personal testing: Plugins > Add > Upload plugin archive; see [packaging](codex.md#chatgpt). Workspace import: Admin > Plugins > Add > Import marketplace, repo URL `https://github.com/google/elephant-goldfish-model`, path `.agents/plugins` |
 | omp | `omp plugin marketplace add google/elephant-goldfish-model && omp plugin install egm@egm` |
 | Muse | `git clone https://github.com/google/elephant-goldfish-model.git && muse plugins install ./elephant-goldfish-model --scope user && muse plugins approve egm` |
+| Mistral Vibe | `git clone https://github.com/google/elephant-goldfish-model.git && python3 scripts/pack_plugin.py --target vibe --output /tmp/egm-vibe`, then copy `/tmp/egm-vibe/egm-vibe` to `~/.vibe/plugins/egm`; see the [Vibe guide](https://github.com/google/elephant-goldfish-model/blob/main/docs/vibe.md) |
 
 Install the whole plugin. Skill-only installers that copy `skills/` alone
 break EGM, because the skills read `agents/` and
@@ -71,6 +72,7 @@ while `agents/` contains reviewer personas. All hosts share the same `skills/`,
 | ChatGPT | `plugin.json`, `.codex-plugin/plugin.json`; `.agents/plugins/marketplace.json` for workspace import | `skills` path | Detect native tools in the current session; general-purpose agent reads the persona |
 | omp | `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` (Claude-compatible fallback) | `skills/` (default) | Personas from `agents/`/`.claude-plugin/agents/` register as native `task` agents |
 | Muse | `.claude-plugin/plugin.json` (Claude-compatible fallback) | `skills/` (default) | 9 adapters import as agents; tool projections unsupported |
+| Mistral Vibe | `.vibe-plugin/plugin.json` (native Agent Plugins 1.0), ships as bundle-root `plugin.json` | `skills/` (default) | Not shipped; general-purpose subagent reads the persona file |
 
 Persona prompts live in `agents/`, the directory Antigravity
 scans for subagents. Each persona has `name` and `description` frontmatter, so
@@ -97,6 +99,7 @@ phrase to its own tool:
 | ChatGPT | Native spawn/wait tools when exposed by the current Work session | No | Detect at runtime; direct dispatch fallback |
 | omp | `task` tool | Yes | Yes |
 | Muse | Native subagents; inspect the available schema | Named spawn rejected in 1.4.14; general-purpose fallback verified | Detect at runtime; direct dispatch fallback |
+| Mistral Vibe | `agents_spawn` | No | Detect at runtime; direct dispatch fallback |
 
 Where a harness has no named persona, the skill spawns a general-purpose
 subagent and tells it to read `agents/<file>.md` first. If a harness cannot
@@ -157,6 +160,17 @@ control is verified here for Codex or Antigravity.
 **omp** ([#186](https://github.com/google/elephant-goldfish-model/issues/186)) has a working installation path. Skills are invoked as `/skill:egm-<command>` (omp registers one command per skill; it has no `/egm-*` namespace). Community-verified on omp v18.12.6: all seven skills discover and resolve, and all nine reviewer personas register as subagents. End-to-end workflow fixtures are not yet automated for omp.
 
 **Muse** (1.4.14) has a working installation path. `muse plugins validate` reports the plugin valid with all seven skills and all nine agent adapters supported; every agent tool projection is unsupported, so Claude tool allowlists do not restrict Muse reviewers. Install from a local path; `marketplace add` on this repository discovers zero plugins because Muse reads the Codex catalog first. End-to-end workflow fixtures passed on 2026-10-30 (brainstorm, draft, and uninterrupted review with 15 fresh-context reviewers); named `egm/egm-*` agents cannot be spawned in this runtime, so reviewers used the general-purpose fallback reading the installed persona first. See the [Muse guide](https://github.com/google/elephant-goldfish-model/blob/main/docs/muse.md). No skill routes a Muse session to that guide yet ([#252](https://github.com/google/elephant-goldfish-model/issues/252)), so point the session at it.
+
+**Mistral Vibe** has a working installation path. The `vibe` packaging target
+builds a runtime folder whose root carries the native Agent Plugins 1.0
+manifest (`.vibe-plugin/plugin.json` in the repository), and Vibe's plugin
+discovery loads it from `~/.vibe/plugins/egm/` or a trusted project's
+`.vibe/plugins/egm/`. All seven skills ship and keep
+`disable-model-invocation: true`, which Vibe honors: the skills stay in the
+slash menu but the model cannot load them through the `skill` tool. Offline
+packaging and manifest checks pass; end-to-end workflow fixtures, reviewer
+isolation, and instruction-file exclusion are not yet verified. See the
+[Vibe guide](https://github.com/google/elephant-goldfish-model/blob/main/docs/vibe.md).
 
 See the [harness test record](https://github.com/google/elephant-goldfish-model/blob/main/TESTING.md#harness-test-record) for tested surfaces and limits.
 
